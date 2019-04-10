@@ -1,16 +1,14 @@
-{-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Crypto.Merkle where
 
 import           Crypto.Hash        (Digest, HashAlgorithm, SHA256 (..),
-                                     digestFromByteString, hash, hashWith)
+                                     digestFromByteString, hash)
 import qualified Data.ByteArray     as ByteArray (concat, convert)
 import           Data.ByteString    (ByteString)
 import qualified Data.ByteString    as ByteString (reverse)
 import qualified Data.Char          as Char (isHexDigit)
-import           Data.Either        (Either (..), fromLeft, fromRight, isLeft,
-                                     isRight)
+import           Data.Either        (Either (..))
 import           Data.Function      ((&))
 import qualified Data.HexString     as Hex (fromBytes, hexString, toBytes,
                                             toText)
@@ -72,7 +70,6 @@ combineSHA256 h g
     maybeDigest = combine <$> parseSHA256 h <*> parseSHA256 g
 
 
-
 -- See: https://en.bitcoin.it/wiki/Protocol_documentation#Merkle_Trees
 -- API: https://blockexplorer.com/api/block/0000000000000000079c58e8b5bce4217f7515a74b170049398ed9b8428beb4a
 -- | Block 10tx: 0000000000000a3290f20e75860d505ce0e948a1d1d846bec7e39015d242884b
@@ -101,6 +98,7 @@ merkleTree = buildTree . txToLeafs
 txToLeafs :: [ Tx ] -> [ MerkleTree (Digest SHA256) ]
 txToLeafs txs = (\x -> Node x Leaf Leaf) <$> txs
 
+
 -- It seems to be a simpler way
 buildTree :: [ MerkleTree (Digest SHA256) ] -> MerkleTree (Digest SHA256)
 buildTree [] = Leaf
@@ -116,11 +114,10 @@ buildTree trees
     asNode _ _                           = Leaf
 
 
-
-merkleProofA :: [ Digest SHA256 ] -> Digest SHA256 -> [ Either (Digest SHA256) (Digest SHA256) ]
-merkleProofA [] _   = []
-merkleProofA [_] _  = []
-merkleProofA txs tx =
+merkleProof :: [ Tx ] -> Tx -> [ Either (Digest SHA256) (Digest SHA256) ]
+merkleProof [] _   = []
+merkleProof [_] _  = []
+merkleProof txs tx =
   let
     siblingOf :: Digest SHA256 -> [ (Digest SHA256, Digest SHA256) ] -> Either (Digest SHA256) (Digest SHA256)
     siblingOf x = toEither . fromJust . find (elem x)
@@ -136,72 +133,7 @@ merkleProofA txs tx =
     byTwoTxs = byTwo txs
     sibling = siblingOf tx byTwoTxs
   in
-    sibling : merkleProofA (uncurry combine <$> byTwoTxs) (merge sibling tx)
-
-
-merkleProofB
-  :: [ Digest SHA256 ]
-  -> Digest SHA256
-  -> [ Either (Digest SHA256) (Digest SHA256) ]
-merkleProofB [] _ = []
-merkleProofB [_] _ = []
-merkleProofB ds digest = partOfProof : merkleProofB combined hdigest
-  where
-    pairs :: [(Digest SHA256, Digest SHA256)]
-    pairs = byTwo ds
-
-    hdigest :: Digest SHA256
-    hdigest = case partOfProof of
-      Left x  -> combine x digest
-      Right x -> combine digest x
-
-    combined :: [ Digest SHA256 ]
-    combined = uncurry combine <$> pairs
-
-    partOfProof :: Either (Digest SHA256) (Digest SHA256)
-    partOfProof = siblingOf digest pairs
-
-    siblingOf :: Digest SHA256 -> [ (Digest SHA256, Digest SHA256) ] -> Either (Digest SHA256) (Digest SHA256)
-    siblingOf x = sibling x . fromJust . find (elem x)
-      where sibling :: Eq a => a -> (a, a) -> Either a a
-            sibling e (a, b)  -- TODO Use a maybe to signal non existance
-              | e == a    = Right b
-              | otherwise = Left a
-
-buildProof
-  :: [ Tx ]
-  -> Tx
-  -> [ Either (Digest SHA256) (Digest SHA256) ]
-  -> [ Either (Digest SHA256) (Digest SHA256) ]
-buildProof [_] _ p  = p
-buildProof txs tx p = buildProof combined digest (proof : p)
-  where
-    pairs :: [ (Digest SHA256, Digest SHA256) ]
-    pairs = byTwo txs
-
-    pair :: (Digest SHA256, Digest SHA256)
-    pair = fromJust $ find (elem tx) pairs  -- TODO: What if is not there?
-
-    proof :: Either (Digest SHA256) (Digest SHA256)
-    proof
-      | l == tx   = Right r
-      | otherwise = Left l
-      where (l, r) = pair
-
-    digest   = uncurry combine pair
-    combined = uncurry combine <$> pairs
-
-
-merkleProofC
-  :: [ Tx ]
-  -> Tx
-  -> [ Either (Digest SHA256) (Digest SHA256) ]
-merkleProofC [] _   = []
-merkleProofC txs tx = reverse $ buildProof txs tx []
-
-
--- TODO Just to satisfy tests until we find the most performant function
-merkleProof = merkleProofA
+    sibling : merkleProof (uncurry combine <$> byTwoTxs) (merge sibling tx)
 
 
 verify :: Tx -> Digest SHA256 -> [ Either (Digest SHA256) (Digest SHA256) ] -> Bool
