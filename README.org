@@ -1,0 +1,19 @@
+* demo-chain
+
+As of today, this is a demo project implementing algorithms used in
+cryptocurrencies. After a while this could be like the Haskell's version of the
+=pybitcointools= project, a library for interacting with the bitcoin blockchain
+and further including other cryptocurrencies as well.
+
+** Resources
+   There are already a few resources about using Haskell with a focus on
+   blockchain and the crypto-space:
+
+   - [[https://www.youtube.com/watch?v=wjyiOXRuUdo][Introduction to cryptocurrencies in Haskell]].
+   - [[https://github.com/adjoint-io/nanocoin][NanoCoin]]
+   - [[https://functional.works-hub.com/learn/Rolling-your-Own-Blockchain-in-Haskell][Rolling your own blockchain in Haskell]].
+
+
+** Reminders
+** TODO When computing the merkle tree better use [[http://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Sequence.html][=Data.Sequence=]]
+   This is instead of just lists, because it seems to be faster.
